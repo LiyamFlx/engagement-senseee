@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EngageSense</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1, h2, h3 {
+            text-align: center;
+        }
+
+        button {
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #1c86ee;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #444;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #1e90ff;
+            width: 0;
+            transition: width 0.5s;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .legend span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="welcome-screen" class="container">
+        <h1>Welcome to EngageSense</h1>
+        <p>Analyze real-time engagement across Physical, Spiritual, Mental, and Emotional dimensions.</p>
+        <button onclick="showScreen('upload-screen')">Start</button>
+    </div>
+
+    <div id="upload-screen" class="container hidden">
+        <h2>Upload or Record Audio</h2>
+        <div>
+            <h3>Upload Track</h3>
+            <input type="file" id="file-upload" />
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="upload-progress"></div>
+            </div>
+            <button onclick="simulateUpload()">Upload</button>
+        </div>
+        <div>
+            <h3>Record Audio</h3>
+            <button id="record-start" onclick="startRecording()">Start</button>
+            <button id="record-stop" class="hidden" onclick="stopRecording()">Stop</button>
+            <p id="record-timer">Recording Time: 0:00</p>
+        </div>
+        <div class="navigation">
+            <button onclick="showScreen('welcome-screen')">Back</button>
+            <button onclick="showScreen('real-time-screen')">Next</button>
+        </div>
+    </div>
+
+    <div id="real-time-screen" class="container hidden">
+        <h2>Real-Time Engagement Data</h2>
+        <div class="chart-container">
+            <canvas id="realTimeChart"></canvas>
+        </div>
+        <div class="navigation">
+            <button onclick="showScreen('upload-screen')">Back</button>
+            <button onclick="showScreen('results-screen')">Next</button>
+        </div>
+    </div>
+
+    <div id="results-screen" class="container hidden">
+        <h2>Engagement Results</h2>
+        <div class="chart-container">
+            <canvas id="resultsChart"></canvas>
+        </div>
+        <button onclick="downloadResults()">Download Results</button>
+        <div class="navigation">
+            <button onclick="showScreen('real-time-screen')">Back</button>
+        </div>
+    </div>
+
+    <script>
+        // Navigation logic
+        function showScreen(screenId) {
+            document.querySelectorAll('.container').forEach(container => container.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        // Upload simulation
+        function simulateUpload() {
+            const progressBar = document.getElementById('upload-progress');
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    alert('File uploaded successfully!');
+                } else {
+                    width += 10;
+                    progressBar.style.width = width + '%';
+                }
+            }, 500);
+        }
+
+        // Recording simulation
+        let recordingTimer;
+        let recordingTime = 0;
+        function startRecording() {
+            document.getElementById('record-start').classList.add('hidden');
+            document.getElementById('record-stop').classList.remove('hidden');
+            recordingTime = 0;
+            recordingTimer = setInterval(() => {
+                recordingTime++;
+                document.getElementById('record-timer').textContent = `Recording Time: 0:${recordingTime.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopRecording() {
+            clearInterval(recordingTimer);
+            document.getElementById('record-start').classList.remove('hidden');
+            document.getElementById('record-stop').classList.add('hidden');
+            alert('Recording stopped!');
+        }
+
+        // Chart.js initialization
+        const ctx1 = document.getElementById('realTimeChart').getContext('2d');
+        const realTimeChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ['0s', '5s', '10s', '15s', '20s'],
+                datasets: [{
+                    label: 'Engagement Levels',
+                    data: [50, 60, 70, 65, 80],
+                    borderColor: '#1e90ff',
+                    backgroundColor: 'rgba(30, 144, 255, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            }
+        });
+
+        const ctx2 = document.getElementById('resultsChart').getContext('2d');
+        const resultsChart = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['Physical', 'Spiritual', 'Mental', 'Emotional'],
+                datasets: [{
+                    label: 'Engagement Score',
+                    data: [75, 50, 85, 90],
+                    backgroundColor: ['#4caf50', '#ff9800', '#2196f3', '#f44336']
+                }]
+            }
+        });
+
+        // Download Results
+        function downloadResults() {
+            const csvContent = "data:text/csv;charset=utf-8,Dimension,Score\nPhysical,75\nSpiritual,50\nMental,85\nEmotional,90";
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "engagement_results.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
