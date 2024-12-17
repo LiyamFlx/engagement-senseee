@@ -3,217 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EngageSense</title>
+    <title>EngageSense: Full Features</title>
+    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://unpkg.com/wavesurfer.js"></script>
+    <script src="https://unpkg.com/meyda/dist/meyda.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #121212;
-            color: #ffffff;
+            color: #fff;
+            text-align: center;
             margin: 0;
             padding: 0;
         }
-
-        .container {
-            max-width: 800px;
-            margin: auto;
-            padding: 20px;
+        header {
+            background-color: #1f1f1f;
+            padding: 10px;
+            color: #00ff00;
         }
-
-        h1, h2, h3 {
-            text-align: center;
-        }
-
-        button {
-            background-color: #1e90ff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #1c86ee;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
-        }
-
-        .progress-bar {
-            height: 20px;
-            background-color: #444;
-            border-radius: 5px;
-            margin: 10px 0;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background-color: #1e90ff;
-            width: 0;
-            transition: width 0.5s;
-        }
-
-        .navigation {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .legend span {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            margin-right: 5px;
-        }
+        button { margin: 10px; }
+        canvas { background: black; margin: 20px auto; display: block; }
+        #waveform { border: 2px solid #00ff00; }
     </style>
 </head>
 <body>
-    <div id="welcome-screen" class="container">
-        <h1>Welcome to EngageSense</h1>
-        <p>Analyze real-time engagement across Physical, Spiritual, Mental, and Emotional dimensions.</p>
-        <button onclick="showScreen('upload-screen')">Start</button>
-    </div>
+    <header>
+        <h1>EngageSense: Real-Time Audio Engagement</h1>
+    </header>
 
-    <div id="upload-screen" class="container hidden">
-        <h2>Upload or Record Audio</h2>
-        <div>
-            <h3>Upload Track</h3>
-            <input type="file" id="file-upload" />
-            <div class="progress-bar">
-                <div class="progress-bar-fill" id="upload-progress"></div>
-            </div>
-            <button onclick="simulateUpload()">Upload</button>
-        </div>
-        <div>
-            <h3>Record Audio</h3>
-            <button id="record-start" onclick="startRecording()">Start</button>
-            <button id="record-stop" class="hidden" onclick="stopRecording()">Stop</button>
-            <p id="record-timer">Recording Time: 0:00</p>
-        </div>
-        <div class="navigation">
-            <button onclick="showScreen('welcome-screen')">Back</button>
-            <button onclick="showScreen('real-time-screen')">Next</button>
-        </div>
-    </div>
+    <!-- Buttons -->
+    <button id="recordBtn" class="btn btn-success">Record Audio</button>
+    <button id="stopBtn" class="btn btn-danger" disabled>Stop Recording</button>
+    <button id="uploadBtn" class="btn btn-info">Upload Audio</button>
+    <button id="downloadBtn" class="btn btn-primary">Download Report</button>
 
-    <div id="real-time-screen" class="container hidden">
-        <h2>Real-Time Engagement Data</h2>
-        <div class="chart-container">
-            <canvas id="realTimeChart"></canvas>
-        </div>
-        <div class="navigation">
-            <button onclick="showScreen('upload-screen')">Back</button>
-            <button onclick="showScreen('results-screen')">Next</button>
-        </div>
-    </div>
+    <!-- Real-time Audio Display -->
+    <div id="waveform"></div>
+    <canvas id="sentimentChart" width="400" height="200"></canvas>
 
-    <div id="results-screen" class="container hidden">
-        <h2>Engagement Results</h2>
-        <div class="chart-container">
-            <canvas id="resultsChart"></canvas>
-        </div>
-        <button onclick="downloadResults()">Download Results</button>
-        <div class="navigation">
-            <button onclick="showScreen('real-time-screen')">Back</button>
-        </div>
+    <!-- Results -->
+    <div>
+        <p>Loudness (RMS): <span id="rms">N/A</span></p>
+        <p>Spectral Centroid: <span id="centroid">N/A</span></p>
+        <p>Pitch: <span id="pitch">N/A</span></p>
+        <p>Sentiment: <span id="sentiment">N/A</span></p>
+        <p>Engagement: <span id="engagement">N/A</span></p>
     </div>
 
     <script>
-        // Navigation logic
-        function showScreen(screenId) {
-            document.querySelectorAll('.container').forEach(container => container.classList.add('hidden'));
-            document.getElementById(screenId).classList.remove('hidden');
+        // Initialize Variables
+        let audioContext, analyzer, mediaRecorder, recordedChunks = [];
+        let meydaAnalyzer, wavesurfer, chart;
+
+        // Initialize WaveSurfer
+        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: 'lime', progressColor: 'green', barWidth: 2 });
+
+        document.getElementById('recordBtn').addEventListener('click', startRecording);
+        document.getElementById('stopBtn').addEventListener('click', stopRecording);
+        document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('downloadBtn').addEventListener('click', downloadReport);
+
+        // Start Recording
+        async function startRecording() {
+            recordedChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContext = new AudioContext();
+            analyzer = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyzer);
+
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+            meydaAnalyzer = Meyda.createMeydaAnalyzer({
+                audioContext, source, bufferSize: 512,
+                featureExtractors: ['rms', 'spectralCentroid', 'pitch'],
+                callback: updateMetrics
+            });
+            meydaAnalyzer.start();
+            document.getElementById('recordBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
         }
 
-        // Upload simulation
-        function simulateUpload() {
-            const progressBar = document.getElementById('upload-progress');
-            let width = 0;
-            const interval = setInterval(() => {
-                if (width >= 100) {
-                    clearInterval(interval);
-                    alert('File uploaded successfully!');
-                } else {
-                    width += 10;
-                    progressBar.style.width = width + '%';
-                }
-            }, 500);
-        }
-
-        // Recording simulation
-        let recordingTimer;
-        let recordingTime = 0;
-        function startRecording() {
-            document.getElementById('record-start').classList.add('hidden');
-            document.getElementById('record-stop').classList.remove('hidden');
-            recordingTime = 0;
-            recordingTimer = setInterval(() => {
-                recordingTime++;
-                document.getElementById('record-timer').textContent = `Recording Time: 0:${recordingTime.toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
+        // Stop Recording
         function stopRecording() {
-            clearInterval(recordingTimer);
-            document.getElementById('record-start').classList.remove('hidden');
-            document.getElementById('record-stop').classList.add('hidden');
-            alert('Recording stopped!');
+            mediaRecorder.stop();
+            meydaAnalyzer.stop();
+            document.getElementById('recordBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+            wavesurfer.loadBlob(blob);
+            analyzeAudio(blob);
         }
 
-        // Chart.js initialization
-        const ctx1 = document.getElementById('realTimeChart').getContext('2d');
-        const realTimeChart = new Chart(ctx1, {
-            type: 'line',
-            data: {
-                labels: ['0s', '5s', '10s', '15s', '20s'],
-                datasets: [{
-                    label: 'Engagement Levels',
-                    data: [50, 60, 70, 65, 80],
-                    borderColor: '#1e90ff',
-                    backgroundColor: 'rgba(30, 144, 255, 0.2)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            }
-        });
+        // Update Metrics
+        function updateMetrics(features) {
+            document.getElementById('rms').innerText = features.rms.toFixed(4);
+            document.getElementById('centroid').innerText = features.spectralCentroid.toFixed(2);
+            document.getElementById('pitch').innerText = features.pitch.toFixed(2);
+        }
 
-        const ctx2 = document.getElementById('resultsChart').getContext('2d');
-        const resultsChart = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: ['Physical', 'Spiritual', 'Mental', 'Emotional'],
-                datasets: [{
-                    label: 'Engagement Score',
-                    data: [75, 50, 85, 90],
-                    backgroundColor: ['#4caf50', '#ff9800', '#2196f3', '#f44336']
-                }]
-            }
-        });
+        // Analyze Audio
+        async function analyzeAudio(blob) {
+            const model = await tf.loadLayersModel('https://storage.googleapis.com/tfjs-models/sentiment_cnn_v1/model.json');
+            const input = tf.tensor2d([[0.5, 0.7, 0.8]]); // Simulated
+            const sentimentScore = model.predict(input).arraySync()[0];
+            document.getElementById('sentiment').innerText = sentimentScore > 0.5 ? 'Positive' : 'Negative';
+            updateChart(sentimentScore);
+        }
 
-        // Download Results
-        function downloadResults() {
-            const csvContent = "data:text/csv;charset=utf-8,Dimension,Score\nPhysical,75\nSpiritual,50\nMental,85\nEmotional,90";
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "engagement_results.csv");
-            document.body.appendChild(link);
+        // Update Chart
+        function updateChart(sentiment) {
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Sentiment Score'],
+                    datasets: [{ data: [sentiment * 100], backgroundColor: sentiment > 0.5 ? 'green' : 'red' }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        // Download Report
+        function downloadReport() {
+            const data = `Loudness (RMS): ${document.getElementById('rms').innerText}\nSpectral Centroid: ${document.getElementById('centroid').innerText}\nPitch: ${document.getElementById('pitch').innerText}\nSentiment: ${document.getElementById('sentiment').innerText}`;
+            const blob = new Blob([data], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'engagement_report.txt';
             link.click();
-            document.body.removeChild(link);
         }
     </script>
 </body>
